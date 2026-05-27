@@ -118,3 +118,27 @@ df["Change (%)"] = ((df["Sentinel"] - df["Vintage"]) / df["Vintage"] * 100).roun
 for cls, row in df.iterrows():
     sign = "+" if row["Change (%)"] > 0 else ""
     print(f"{cls}: {sign}{row['Change (%)']}%")
+## Edge effect in goede nogwat realiseren 
+
+bands = [0, 50, 100, 200, 500]  # meters, willekeur
+
+print("Distance from edge | Change rate")
+print("-----------------------------------")
+
+for i in range(len(bands)-1):
+    inner = vintage_boundary.buffer(-bands[i])
+    outer = vintage_boundary.buffer(-bands[i+1])
+    band  = gpd.GeoDataFrame(geometry=inner.difference(outer), crs=vintage.crs)
+
+    sent_band = sentinel_clipped.clip(band)
+    vint_band = vintage.clip(band)
+
+    sent_area = sent_band.groupby("Class_name")["geometry"].apply(lambda x: x.area.sum())
+    vint_area = vint_band.groupby("Class_name")["geometry"].apply(lambda x: x.area.sum())
+
+    all_classes = set(sent_area.index) | set(vint_area.index)
+    changed = sum(abs(sent_area.get(c, 0) - vint_area.get(c, 0)) for c in all_classes)
+    total   = vint_band.geometry.area.sum()
+
+    print(f"  {bands[i]:>4}-{bands[i+1]}m       | {changed/total*100:.1f}% change")
+ #resultaten lijken te wijzen op complicaties met geometric misalignment met vintage photo's, conclusie trekken dat edge effect analysis vanuit programeren minder handig is en beter naar grote structures gekekenen kan worden zoals de change map uit Arcgis
