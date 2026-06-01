@@ -7,8 +7,8 @@ import os
 
 folder = os.path.dirname(os.path.abspath(__file__))
 
-sentinel = gpd.read_file(os.path.join(folder, "Shapefile_SENTINEL_FINAL.shp"))
-vintage  = gpd.read_file(os.path.join(folder, "Shapefile_VINTAGE_FINAL.shp"))
+sentinel = gpd.read_file(os.path.join(folder, "MODERN_UNDISSOLVED.shp"))
+vintage  = gpd.read_file(os.path.join(folder, "VINTAGE_UNDISSOLVED.shp"))
 
 # Reproject to same CRS if needed (was needed, slightly)
 if sentinel.crs != vintage.crs:
@@ -39,7 +39,7 @@ aspect = geo_height / geo_width
 fig, axes = plt.subplots(1, 2, figsize=(16, 16 * aspect * 0.5))
 fig.patch.set_facecolor("#1a1a2e")
 
-for ax, gdf, title in zip(axes, [sentinel_clipped, vintage], ["Sentinel Final (clipped)", "Vintage Final"]):
+for ax, gdf, title in zip(axes, [vintage, sentinel_clipped], ["Vintage Final", "Sentinel Final (clipped)"]):
     ax.set_facecolor("#1a1a2e")
     for class_name, group in gdf.groupby("Class_name"):
         color = color_map.get(class_name, "#cccccc")
@@ -64,7 +64,7 @@ plt.show()
 fig2, axes2 = plt.subplots(1, 2, figsize=(14, 7))
 fig2.patch.set_facecolor("#1a1a2e")
 
-for ax, gdf, title in zip(axes2, [sentinel_clipped, vintage], ["Sentinel Final", "Vintage Final"]):
+for ax, gdf, title in zip(axes2, [vintage, sentinel_clipped], ["Vintage Final", "Sentinel Final (clipped)"]):
     areas = gdf.groupby("Class_name")["geometry"].apply(lambda x: x.area.sum())
     colors = [color_map.get(c, "#cccccc") for c in areas.index]
     ax.pie(areas, labels=areas.index, colors=colors, autopct="%1.1f%%",
@@ -118,6 +118,7 @@ df["Change (%)"] = ((df["Sentinel"] - df["Vintage"]) / df["Vintage"] * 100).roun
 for cls, row in df.iterrows():
     sign = "+" if row["Change (%)"] > 0 else ""
     print(f"{cls}: {sign}{row['Change (%)']}%")
+
 ## Edge effect in goede nogwat realiseren 
 
 bands = [0, 50, 100, 200, 500]  # meters, willekeur
@@ -142,3 +143,82 @@ for i in range(len(bands)-1):
 
     print(f"  {bands[i]:>4}-{bands[i+1]}m       | {changed/total*100:.1f}% change")
  #resultaten lijken te wijzen op complicaties met geometric misalignment met vintage photo's, conclusie trekken dat edge effect analysis vanuit programeren minder handig is en beter naar grote structures gekekenen kan worden zoals de change map uit Arcgis
+
+## undissolved versies gebruikt, nu betere edge effect analysis
+
+import numpy as np
+
+# edge effect analysis
+
+for name, gdf in [("Vintage", vintage), ("Sentinel", sentinel_clipped)]:
+    print(f"\n=== {name} ===")
+    
+    for cls in gdf["Class_name"].unique():
+        subset = gdf[gdf["Class_name"] == cls].copy()
+        
+        # Individual patch metrics
+        subset["area"]       = subset.geometry.area
+        subset["perimeter"]  = subset.geometry.length
+        subset["EDi"]        = subset["perimeter"] / subset["area"]
+        
+        # Landscape metrics per class
+        total_area = subset["area"].sum()
+        max_area   = subset["area"].max()
+        np_count   = len(subset)
+        mpa        = subset["area"].mean()
+        lpi        = (max_area / total_area) * 100
+        ed         = subset["perimeter"].sum() / total_area
+        edi_median = subset["EDi"].median()
+
+        print(f"  {cls:<8} | NP={np_count:>5} | MPA={mpa:>10,.0f} m² | LPI={lpi:>5.1f}% | ED={ed:.4f} | EDi median={edi_median:.4f}")
+
+# VISUALISE EDi DISTRIBUTIONS (like Figure 6C/D) with removed outliers
+
+fig7, axes7 = plt.subplots(1, 2, figsize=(14, 5))
+fig7.patch.set_facecolor("#1a1a2e")
+
+for ax, name, gdf in zip(axes7, ["Vintage", "Sentinel"], [vintage, sentinel_clipped]):
+    ax.set_facecolor("#1a1a2e")
+    
+    grass = gdf[gdf["Class_name"] == "Grass"].copy()
+    grass["EDi"] = grass.geometry.length / grass.geometry.area
+    
+    cutoff = grass["EDi"].quantile(0.95)
+    grass_filtered = grass[grass["EDi"] <= cutoff]
+    
+    ax.hist(grass_filtered["EDi"], bins=30, color=color_map["Grass"], edgecolor="none", alpha=0.8)
+    ax.set_title(f"EDi Distribution - Grass ({name})", fontsize=11, fontweight="bold", color="white")
+    ax.set_xlabel("EDi (perimeter/area)", color="white")
+    ax.set_ylabel("Number of patches", color="white")
+    ax.tick_params(colors="white")
+    ax.spines[["top", "right"]].set_visible(False)
+    for spine in ["left", "bottom"]:
+        ax.spines[spine].set_color("white")
+
+plt.tight_layout()
+plt.show()
+
+# PATCH SIZE DISTRIBUTION (like Figure 6A/B) 
+
+fig8, axes8 = plt.subplots(1, 2, figsize=(14, 5))
+fig8.patch.set_facecolor("#1a1a2e")
+
+for ax, name, gdf in zip(axes8, ["Vintage", "Sentinel"], [vintage, sentinel_clipped]):
+    ax.set_facecolor("#1a1a2e")
+    
+    grass = gdf[gdf["Class_name"] == "Grass"].copy()
+    grass["log_area"] = np.log10(grass.geometry.area)
+    
+    ax.hist(grass["log_area"], bins=30, color=color_map["Grass"], edgecolor="none", alpha=0.8)
+    ax.set_title(f"Patch Size Distribution - Grass ({name})", fontsize=11, fontweight="bold", color="white")
+    ax.set_xlabel("Log10(Area m²)", color="white")
+    ax.set_ylabel("Number of patches", color="white")
+    ax.tick_params(colors="white")
+    ax.spines[["top", "right"]].set_visible(False)
+    for spine in ["left", "bottom"]:
+        ax.spines[spine].set_color("white")
+
+plt.tight_layout()
+plt.show()
+
+ 
