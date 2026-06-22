@@ -44,7 +44,7 @@ geo_width  = (b[2] - b[0]) + 2 * pad_x
 geo_height = (b[3] - b[1]) + 2 * pad_y
 aspect = geo_height / geo_width
 
-# === FIGURE 1: SIDE BY SIDE MAPS ===
+# === FIGURE 2: SIDE BY SIDE MAPS ===
 fig, axes = plt.subplots(1, 2, figsize=(16, 16 * aspect * 0.5))
 fig.patch.set_facecolor("#1a1a2e")
 
@@ -178,7 +178,7 @@ for name, gdf in [("Vintage", vintage), ("Sentinel", sentinel_clipped)]:
 
         print(f"  {cls:<8} | NP={np_count:>5} | MPA={mpa:>10,.0f} m² | LPI={lpi:>5.1f}% | ED={ed:.4f} | EDi median={edi_median:.4f}")
 
-# === FIGURE 4: EDGE EFFECT PATCH METRICS BY DISTANCE BAND ===
+# === FIGURE 5: EDGE EFFECT PATCH METRICS BY DISTANCE BAND ===
 summaries = {}
 for name, gdf in [("Vintage", vintage), ("Sentinel", sentinel_clipped)]:
     gdf["band"] = pd.cut(gdf["dist_to_edge"], bins=bin_edges, labels=bin_labels)
@@ -214,7 +214,7 @@ plt.suptitle("Edge Effect Analysis: Patch Metrics by Distance from Boundary",
 plt.tight_layout()
 plt.show()
 
-# === FIGURE 5: EDi DISTRIBUTION - GRASS (with outlier filter) ===
+# === FIGURE 6: EDi DISTRIBUTION - GRASS (with outlier filter) ===
 fig7, axes7 = plt.subplots(1, 2, figsize=(14, 5))
 fig7.patch.set_facecolor("#1a1a2e")
 
@@ -239,7 +239,7 @@ for ax, name, gdf in zip(axes7, ["Vintage", "Sentinel"], [vintage, sentinel_clip
 plt.tight_layout()
 plt.show()
 
-# === FIGURE 6: PATCH SIZE DISTRIBUTION - GRASS ===
+# === FIGURE 7: PATCH SIZE DISTRIBUTION - GRASS ===
 fig8, axes8 = plt.subplots(1, 2, figsize=(14, 5))
 fig8.patch.set_facecolor("#1a1a2e")
 
